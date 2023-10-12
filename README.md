@@ -7,7 +7,7 @@ Preprocessed datasets already in `datasets` folder.
 Rees46 dataset as example:
 - Construct global item graph, run:
     ```
-    python build_graph.py --dataset rees46
+    python run.py --dataset rees46
     ```
 
 ## Requirements
