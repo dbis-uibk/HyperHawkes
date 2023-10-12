@@ -1,0 +1,12 @@
+dataset: ta-feng
+USER_ID_FIELD: customer_id
+ITEM_ID_FIELD: product_id
+TIME_FIELD: transaction_date
+load_col:
+    inter: [customer_id, product_id, transaction_date]
+ITEM_LIST_LENGTH_FIELD: item_length
+LIST_SUFFIX: _list
+
+# 5-core dataset
+user_inter_num_interval: "[5,inf)"
+item_inter_num_interval: "[5,inf)"

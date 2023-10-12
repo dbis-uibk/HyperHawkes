@@ -1,0 +1,24 @@
+stopping_step: 5
+train_batch_size: 512
+eval_batch_size: 2048
+metrics: ['NDCG', 'MRR', 'Recall']
+topk: [5, 10, 20]
+valid_metric: 'NDCG@20'
+metric_decimal_place: 4
+seed: 2023
+reproducibility: True
+
+MAX_ITEM_LIST_LENGTH: 50
+hidden_size: 64
+embedding_size: 64
+
+normalize_all: False # do not normalize timestamp
+
+eval_args:
+    order: TO
+    split: { 'LS': 'valid_and_test' }
+    mode: full
+
+train_neg_sample_args:
+    sample_num: 1
+loss_type: 'BPR'

@@ -1,0 +1,12 @@
+dataset: nowplaying
+USER_ID_FIELD: user_id
+ITEM_ID_FIELD: item_id
+TIME_FIELD: timestamp
+load_col:
+    inter: [user_id, item_id, timestamp]
+ITEM_LIST_LENGTH_FIELD: item_length
+LIST_SUFFIX: _list
+
+# 5-core dataset
+user_inter_num_interval: "[5,inf)"
+item_inter_num_interval: "[5,inf)"

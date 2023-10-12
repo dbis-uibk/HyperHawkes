@@ -1,0 +1,19 @@
+hidden_size: 64
+hgnn_layers: 2
+n_levels: 2
+n_heads: 4
+attn_dropout_prob: 0.2
+emb_dropout_prob: 0.2
+layer_norm_eps: 1e-12
+
+day_factor: 100
+sub_time_delta: 3600
+n_clusters: 128
+
+use_atten_mixer: True
+use_hgnn: True
+use_base_excitation: True
+use_self_item_excitation: True
+use_self_intent_excitation: True
+
+loss_type: 'BPR'
