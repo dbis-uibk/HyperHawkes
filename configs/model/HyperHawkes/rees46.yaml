@@ -5,8 +5,8 @@ use_base_excitation: True
 use_self_item_excitation: True
 use_self_intent_excitation: True
 
-hgnn_layers: 1
-n_clusters: 64
+hgnn_layers: 3
+n_clusters: 16
 
 attn_dropout_prob: 0.2
 emb_dropout_prob: 0.2
