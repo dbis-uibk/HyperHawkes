@@ -4,8 +4,7 @@ HyperHawkes: Hypergraph-based Temporal Modelling of Repeated Intent for Sequenti
 Preprocessed datasets already in `datasets` folder. 
 
 ## Usage
-Rees46 dataset as example:
-- Construct global item graph, run:
+Rees46 dataset as example, run:
     ```
     python run.py --dataset rees46
     ```
@@ -13,9 +12,7 @@ Rees46 dataset as example:
 ## Requirements
 - Python >= 3.8
 - PyTorch >= 1.13.1
-- recbole >= 1.1.1  
-- faiss-gpu >= 1.7.3
-- tqdm
+- recbole >= 1.2.0
 
 ## Citation
 TBA
