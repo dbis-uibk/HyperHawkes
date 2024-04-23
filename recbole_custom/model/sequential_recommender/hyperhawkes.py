@@ -117,18 +117,7 @@ class HyperHawkes(SequentialRecommender):
             self.temperature = config['temperature']
             self.cl_criterion = ClusterLoss(self.n_clusters, self.temperature, self.device)
 
-            # self.user_alphas = nn.Embedding(self.n_users, 1)
-            # self.intent_alphas = nn.Embedding(self.n_clusters, 1)
-            # self.user_intent_alphas = nn.Linear(self.n_clusters + self.hidden_size, 1)
-
             self.intent_dist = nn.Linear(self.n_clusters + self.hidden_size, 5)
-            # self.intent_dist = nn.Linear(self.n_clusters, 5)
-            # self.intent_dist = nn.Linear(self.hidden_size, 5)
-
-            # self.intent_pis = nn.Embedding(self.n_clusters, 1)
-            # self.intent_betas = nn.Embedding(self.n_clusters, 1)
-            # self.intent_sigmas = nn.Embedding(self.n_clusters, 1)
-            # self.intent_mus = nn.Embedding(self.n_clusters, 1)
 
         ## hgnn
         if self.use_hgnn and self.hgnn_layers > 0:
@@ -226,15 +215,7 @@ class HyperHawkes(SequentialRecommender):
         #delta_t = delta_t.unsqueeze(-1)
         mask = ((delta_t > 0).float())
 
-        '''user_intent_alphas = self.user_intent_alphas(torch.cat((target2intent_emb, user_rep), dim=1)).clamp(min=1e-10, max=10)
-        alphas = self.global_alpha + user_intent_alphas
-        pis, mus = self.intent_pis(target2intent) + 0.5, self.intent_mus(target2intent) + 1
-        betas = (self.intent_betas(target2intent) + 1).clamp(min=1e-10, max=10)
-        sigmas = (self.intent_sigmas(target2intent) + 1).clamp(min=1e-10, max=10)'''
-
         dist_params = self.intent_dist(torch.cat((target2intent_emb, user_rep), dim=1))
-        #dist_params = self.intent_dist(target2intent_emb)
-        #dist_params = self.intent_dist(user_rep)
 
         mus = (dist_params[:, 0]).clamp(min=1e-10, max=10)
         sigmas = (dist_params[:, 1]).clamp(min=1e-10, max=10)
