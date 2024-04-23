@@ -1,8 +1,0 @@
-hidden_size: 64
-feat_drop: 0.2
-attn_drop: 0.2
-n_layers: 2
-max_num_nodes: 50
-
-loss_type: 'CE'
-gnn_transform: sess_graph

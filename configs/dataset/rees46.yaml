@@ -1,4 +1,4 @@
-dataset: reez46
+dataset: rees46
 USER_ID_FIELD: user_id
 ITEM_ID_FIELD: item_id
 TIME_FIELD: timestamp

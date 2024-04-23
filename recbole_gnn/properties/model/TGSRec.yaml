@@ -1,8 +1,0 @@
-n_layers: 2
-n_heads: 2
-n_neighbors: 30
-time_dim: 32
-node_dim: 32
-dropout_prob: 0.3
-reg_weight: 0.3
-loss_type: 'BPR'
