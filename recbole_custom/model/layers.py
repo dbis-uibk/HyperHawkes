@@ -32,7 +32,6 @@ from torch_scatter import scatter_add
 from torch_geometric.nn import MessagePassing, HypergraphConv
 from torch_geometric.seed import seed_everything
 
-import faiss
 import random
 
 
@@ -157,58 +156,6 @@ class AttentionMixer(nn.Module):
                 item_seq_emb.size(0), -1, self.hidden_size) * mask.view(mask.shape[0], -1, 1).float(), 1)
 
         return output
-
-
-class KMeans(object):
-    """
-    https://github.com/salesforce/ICLRec
-    https://github.com/facebookresearch/faiss/blob/main/benchs/kmeans_mnist.py
-    """
-    def __init__(self, num_cluster, seed, hidden_size, device="cpu"):
-        """
-        Args:
-            k: number of clusters
-        """
-        self.seed = seed
-        self.num_cluster = num_cluster
-        #self.gpu_id = 0
-        self.device = device
-        self.hidden_size = hidden_size
-        self.clus, self.index = self.__init_cluster(self.hidden_size)
-        self.centroids = []
-        self.trainable = True
-
-    def __init_cluster(
-            self, hidden_size, verbose=False, niter=20, nredo=5, max_points_per_centroid=4096, min_points_per_centroid=0
-    ):
-        clus = faiss.Clustering(hidden_size, self.num_cluster)
-        clus.verbose = verbose
-        clus.niter = niter
-        clus.nredo = nredo
-        clus.seed = self.seed
-        clus.max_points_per_centroid = max_points_per_centroid
-        clus.min_points_per_centroid = min_points_per_centroid
-
-        res = faiss.StandardGpuResources()  # use a single GPU
-        index_flat = faiss.IndexFlatL2(self.hidden_size)  # build a flat (CPU) index
-        if str(self.device) != 'cpu':
-            index_flat = faiss.index_cpu_to_gpu(res, 0, index_flat)
-        return clus, index_flat
-
-    def train(self, x):
-        # train to get centroids
-        if x.shape[0] > self.num_cluster:
-            self.clus.train(x=x.cpu().detach().numpy(), index=self.index)
-        centroids = faiss.vector_to_array(self.clus.centroids).reshape(self.num_cluster, self.hidden_size)
-        centroids = torch.Tensor(centroids).to(self.device)
-        #self.centroids = nn.functional.normalize(centroids, p=2, dim=1)
-        self.centroids = centroids
-
-    def query(self, x):
-        D, I = self.index.search(x.cpu().detach().numpy(), 1)  # for each sample, find cluster distance and assignments
-        x2cluster = [int(n[0]) for n in I]
-        x2cluster = torch.LongTensor(x2cluster).to(self.device)
-        return x2cluster, self.centroids[x2cluster]
 
 
 class MLPLayers(nn.Module):

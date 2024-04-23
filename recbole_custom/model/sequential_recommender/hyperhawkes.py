@@ -10,19 +10,14 @@ Reference:
     TODO
 
 """
-import math
-import os
-import random
-import itertools
-
 import numpy as np
+from tqdm import tqdm
+
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.nn import LayerNorm
-from torch.nn.init import xavier_normal_, constant_
-from torch_geometric.nn import DMoNPooling, GraphMultisetTransformer, TopKPooling, ASAPooling
-from tqdm import tqdm
+
+import torch_geometric
 
 from recbole_custom.model.utils import construct_global_hyper_graph, DataAugmention
 from recbole_custom.utils import InputType
@@ -32,13 +27,6 @@ from recbole_custom.model.abstract_recommender import GeneralRecommender, Sequen
 from recbole_custom.model.init import xavier_normal_initialization, xavier_uniform_initialization
 from recbole_custom.model.layers import HGNN, AttentionMixer, MLPLayers
 
-import matplotlib.pyplot as plt
-from collections import Counter
-from itertools import chain, combinations
-from torch_geometric.utils import degree, k_hop_subgraph, add_self_loops, to_torch_coo_tensor
-import torch_geometric
-
-import faiss
 
 
 class HyperHawkes(SequentialRecommender):
