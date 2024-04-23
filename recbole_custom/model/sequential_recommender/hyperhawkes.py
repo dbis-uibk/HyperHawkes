@@ -1,7 +1,3 @@
-# @Time   : 2023/3/15
-# @Author : Andreas Peintner
-# @Email  : a.peintner@gmx.net
-
 r"""
 HyperHawkes
 ################################################
