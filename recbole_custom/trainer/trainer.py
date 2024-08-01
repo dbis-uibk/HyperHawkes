@@ -1499,11 +1499,11 @@ class NCLTrainer(Trainer):
 class HyperHawkesTrainer(Trainer):
     def __init__(self, config, model):
         super(HyperHawkesTrainer, self).__init__(config, model)
-        #self.warm_up_epochs = config['warm_up_epochs']
+        self.warm_up_epochs = config['warm_up_epochs']
         self.model = model
 
     def _train_epoch(self, train_data, epoch_idx, loss_func=None, show_progress=False):
-        #if epoch_idx >= self.warm_up_epochs:
-        self.logger.info("Running E-step !")
-        self.model.e_step()
+        if epoch_idx >= self.warm_up_epochs and self.model.use_self_intent_excitation:
+            self.logger.info("Running E-step !")
+            self.model.e_step()
         return super()._train_epoch(train_data, epoch_idx, loss_func, show_progress)

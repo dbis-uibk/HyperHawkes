@@ -226,7 +226,7 @@ class ClusterLoss(nn.Module):
         mask = mask.bool()
         return mask
 
-    @torch.compile
+    #@torch.compile
     def cosine_similarity(self, t1, t2, dim=-1, eps=1e-8):
         # https://github.com/pytorch/pytorch/issues/104564
         # get normalization value

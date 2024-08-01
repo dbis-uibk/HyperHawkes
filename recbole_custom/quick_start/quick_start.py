@@ -43,7 +43,7 @@ from recbole_custom.utils import (
 
 
 def run_recbole(
-    model=None, dataset=None, config_file_list=None, config_dict=None, saved=True, export_intents=False
+    model=None, dataset=None, config_file_list=None, config_dict=None, saved=True
 ):
     r"""A fast running api, which includes the complete process of
     training and testing a model on a specified dataset
@@ -106,15 +106,6 @@ def run_recbole(
 
     logger.info(set_color("best valid ", "yellow") + f": {best_valid_result}")
     logger.info(set_color("test result", "yellow") + f": {test_result}")
-
-    if export_intents:
-        item_names, vendor_ids, hyper_embs, embs, clustering, intervals = model.export_intents()
-        np.save(os.path.join("./dataset/", config.dataset, 'item_names.npy'), item_names)
-        np.save(os.path.join("./dataset/", config.dataset, 'vendor_ids.npy'), vendor_ids)
-        np.save(os.path.join("./dataset/", config.dataset, 'hyper_embs.npy'), hyper_embs)
-        np.save(os.path.join("./dataset/", config.dataset, 'embs.npy'), embs)
-        np.save(os.path.join("./dataset/", config.dataset, 'clustering.npy'), clustering)
-        np.save(os.path.join("./dataset/", config.dataset, 'intervals.npy'), intervals)
 
     return {
         "best_valid_score": best_valid_score,

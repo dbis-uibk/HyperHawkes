@@ -1,9 +1,13 @@
 import math
 import random
 import numpy as np
+import pandas as pd
+from pyrsistent import v
 import torch
 
 from collections import defaultdict, Counter
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, fpgrowth, fpmax
 
 
 class DataAugmention:
@@ -82,10 +86,10 @@ class DataAugmention:
         return torch.tensor(reordered_item_seq, dtype=torch.long, device=item_seq.device), item_seq_len
 
 
-def construct_global_hyper_graph(biparpite_graph, sub_time_delta, n_items):
+def get_sub_sequences(biparpite_graph, sub_time_delta):
     bi_edge_index, bi_edge_weight, bi_edge_time = biparpite_graph
 
-    # get all subseqs
+    # get all subseqs/sessions
     offset = 0
     current_u_length = 0
     current_uid = bi_edge_index[0, 0]
@@ -107,68 +111,72 @@ def construct_global_hyper_graph(biparpite_graph, sub_time_delta, n_items):
         else:
             current_u_length += 1
 
-    #intents = [set(x) for x in all_subseqs]
+    return all_subseqs
+def construct_global_graph(biparpite_graph, sub_time_delta, n_nodes, logger):
+    # get all subseqs/sessions
+    all_subseqs = get_sub_sequences(biparpite_graph, sub_time_delta)
 
-    # create co-occurence dict
-    co_occurrence_dict = defaultdict(Counter)
-    for seq in all_subseqs:
-        for item in set(seq):
-            co_occuring_items = [c_item for c_item in seq if c_item != item]
-            co_occurrence_dict[item].update(co_occuring_items)
+    graph = np.zeros((n_nodes, n_nodes), dtype=int)
+    for i, seq in enumerate(all_subseqs):
+        if len(seq) > 1:
+            for j in range(len(seq) - 1):
+                graph[seq[j], seq[j + 1]] += 1
 
-    # find and filter intents
-    # possible multiple intents per session -> subintents
-    intents = []
-    for seq in all_subseqs:
-        sub_intents = []
-        unique_items = set(seq)
-        for item in unique_items:
-            intent = {item}
-            co_occuring_items = unique_items - intent
-            intent.update([c_item for c_item in co_occuring_items if co_occurrence_dict[item][c_item] >= 2])
-            if len(intent) >= 2:
-                sub_intents.append(intent)
+    edge_index = torch.tensor(np.nonzero(graph), dtype=torch.long)
+    edge_weights = torch.tensor(graph[edge_index[0], edge_index[1]], dtype=torch.float)
 
-        # add only superset intents
-        sub_intents.sort(key=len, reverse=True)
-        superset_intents = set(frozenset(i) for i in sub_intents)
-        for sub_intent in sub_intents:
-            for comp_subset in sub_intents:
-                if sub_intent < comp_subset:
-                    superset_intents.discard(frozenset(sub_intent))
-                    break
-        intents += list(superset_intents)
-        #intents += sub_intents
+    return edge_index, edge_weights
 
-    intent_counter = Counter(frozenset(s) for s in intents)
+def construct_global_hyper_graph(biparpite_graph, sub_time_delta, min_support, n_nodes, logger):
+    # get all subseqs/sessions
+    all_subseqs = get_sub_sequences(biparpite_graph, sub_time_delta)
 
+    # intent rule mining
+    te = TransactionEncoder()
+    te_ary = te.fit(all_subseqs).transform(all_subseqs)
+    df_encoded = pd.DataFrame(te_ary, columns=te.columns_)
+    logger.info(f"len(all_subseqs): {len(all_subseqs)}")
+    
+    frequent_itemsets = fpmax(df_encoded, min_support=min_support, use_colnames=True)
+    frequent_itemsets['length'] = frequent_itemsets['itemsets'].apply(lambda x: len(x))
+    frequent_itemsets = frequent_itemsets[(frequent_itemsets['length'] >= 2)].reset_index(drop=True)
+    logger.info(f"# mined sets: {len(frequent_itemsets)}")
+
+    # build hyper graph
     nodes = []
     edges = []
     edge_weights = []
-    for edge_id, items in enumerate(intent_counter):
+    max_edge_weight = frequent_itemsets["support"].max()
+    min_edge_weight = frequent_itemsets["support"].min()
+    for edge_id, row in frequent_itemsets.iterrows():
+        items = row["itemsets"]
         n_items = len(items)
-        edge_weight = intent_counter[items]
-        # filter out noisy, unreliable intents
-        # if edge_weight > 1:
+        edge_support = row["support"]
+        edge_weight = 1 + 99 * (edge_support - min_edge_weight) / (max_edge_weight - min_edge_weight) # scale edge weight to [1, 100]
         nodes.append(torch.LongTensor(list(items)))
         edges.append(torch.LongTensor([edge_id] * n_items))
-        edge_weights.append(torch.LongTensor([edge_weight] * n_items))
+        edge_weights.append(torch.FloatTensor([edge_weight] * n_items))
+
+    if len(nodes) == 0:
+        logger.info("No frequent itemsets found")
+        return torch.tensor([[0, 0], [0, 0]]), torch.tensor([1])
 
     edge_index = torch.stack((torch.cat(nodes), torch.cat(edges)))
     edge_weights = torch.cat(edge_weights)  # row normalized in conv
 
     # add self loops
-    num_nodes = edge_index[0].max().item() + 1
-    num_edge = edge_index[1].max().item() + 1
-    loop_index = torch.arange(0, num_nodes, dtype=torch.long)
+    # already done in conv manually
+    '''num_edge = edge_index[1].max().item() + 1
+    loop_index = torch.range(0, n_nodes, dtype=torch.long)
     loop_index = loop_index.unsqueeze(0).repeat(2, 1)
-    loop_index[1] += num_edge
+    loop_index[1] = num_edge + torch.range(0, n_nodes, dtype=torch.long)
     loop_index = loop_index.repeat_interleave(2, dim=1)
-    loop_weight = torch.ones(num_nodes, dtype=torch.float)
+    loop_weight = torch.ones(n_nodes, dtype=torch.float)
     edge_index = torch.cat([edge_index, loop_index], dim=1)
-    edge_weights = torch.cat([edge_weights, loop_weight], dim=0)
+    edge_weights = torch.cat([edge_weights, loop_weight], dim=0)'''
 
-    #print(f"Number of edges: {edge_index[1].max().item() + 1}")
-    #print(f"Number of nodes: {edge_index[0].max().item() + 1}")
+    logger.info(f"Number of edges: {torch.unique(edge_index[1]).size(0)}")
+    logger.info('Max. edge weight: %.4f' % edge_weights.max().item())
+    logger.info('Sparsity of hyper graph: %.6f' % (1.0 - (edge_index.size(1) / (n_nodes ** 2))))
 
     return edge_index, edge_weights

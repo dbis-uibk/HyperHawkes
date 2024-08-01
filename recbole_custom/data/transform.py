@@ -22,6 +22,7 @@ def construct_transform(config):
             "mask_itemseq": MaskItemSequence,
             "multi_aug_itemseq": MultiAugItemSequence,
             "session_mask_itemseq": SessionMaskItemSequence,
+            "session_itemseq": SessionItemSequence,
             "inverse_itemseq": InverseItemSequence,
             "crop_itemseq": CropItemSequence,
             "reorder_itemseq": ReorderItemSequence,
@@ -269,6 +270,55 @@ class MaskItemSequence:
                 self.MASK_INDEX: masked_index,
             }
             interaction.update(Interaction(new_dict))
+        return interaction
+
+
+class SessionItemSequence:
+    """
+    Split into sub-sequences (sessions) for training. Last session in user sequence.
+    """
+
+    def __init__(self, config):
+        self.ITEM_SEQ = config["ITEM_ID_FIELD"] + config["LIST_SUFFIX"]
+        self.ITEM_SEQ_LEN = config["ITEM_LIST_LENGTH_FIELD"]
+        self.ITEM_ID = config["ITEM_ID_FIELD"]
+        self.TIME_SEQ = config['TIME_FIELD'] + config["LIST_SUFFIX"]
+
+        self.ITEM_SUB_SEQ = "sub_" + self.ITEM_SEQ
+        self.ITEM_SUB_SEQ_LEN = "sub_" + self.ITEM_SEQ_LEN
+
+        self.max_seq_length = config["MAX_ITEM_LIST_LENGTH"]
+        self.mask_ratio = config["mask_ratio"]
+        self.mask_item_length = int(self.mask_ratio * self.max_seq_length)
+        config["ITEM_SUB_SEQ"] = self.ITEM_SUB_SEQ
+        config["ITEM_SUB_SEQ_LEN"] = self.ITEM_SUB_SEQ_LEN
+
+        self.config = config
+
+    def __call__(self, dataset, interaction):
+        item_seq = interaction[self.ITEM_SEQ]
+        item_seq_len = interaction[self.ITEM_SEQ_LEN]
+        time_seq = interaction[self.TIME_SEQ]
+
+        time_seq_shifted = torch.roll(time_seq, 1)
+        time_seq_shifted[:, 0] = time_seq[:, 0]
+        time_delta = torch.abs(time_seq - time_seq_shifted)
+        sub_seq_mask = torch.cumsum((time_delta > self.config["sub_time_delta"]), dim=1)
+
+        last_sessions = []
+        for seq, length, mask in zip(item_seq, item_seq_len, sub_seq_mask):
+            l_session = mask[length - 1]
+            last_sessions.append(seq[mask == l_session])
+
+        item_sequence = torch.nn.utils.rnn.pad_sequence(last_sessions, batch_first=True, padding_value=0.0)
+        item_sequence_len = torch.count_nonzero(item_sequence, dim=1)
+
+        new_dict = {
+            self.ITEM_SUB_SEQ: item_sequence,
+            self.ITEM_SUB_SEQ_LEN: item_sequence_len
+        }
+        interaction.update(Interaction(new_dict))
+
         return interaction
 
 

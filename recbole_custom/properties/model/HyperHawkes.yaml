@@ -10,23 +10,17 @@ hgnn_layers: 2
 day_factor: 100
 sub_time_delta: 3600
 n_clusters: 64
-thresh_cluster: 0.5
+temp_cluster: 0.2
+min_support: 0.0005
 
-mask_ratio: 0.3
-#transform: "mask_itemseq"
-transform: "session_mask_itemseq"
+#transform: "session_itemseq"
 
-#eta: 0.3
-#transform: "crop_itemseq"
-
-temperature: 1.0
-cl_weight: 0.1
-
-use_cl: True
 use_hgnn: True
-use_atten_mixer: True
+use_shortterm: True
 use_base_excitation: True
 use_self_item_excitation: True
 use_self_intent_excitation: True
+
+warm_up_epochs: 1
 
 loss_type: 'BPR'

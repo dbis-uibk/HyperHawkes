@@ -1,9 +1,10 @@
 dataset: nowplaying
 USER_ID_FIELD: user_id
-ITEM_ID_FIELD: item_id
+#ITEM_ID_FIELD: item_id
+ITEM_ID_FIELD: artist_id
 TIME_FIELD: timestamp
 load_col:
-    inter: [user_id, item_id, timestamp]
+    inter: [user_id, session_id, item_id, artist_id, timestamp]
 ITEM_LIST_LENGTH_FIELD: item_length
 LIST_SUFFIX: _list
 

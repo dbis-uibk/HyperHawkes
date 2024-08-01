@@ -29,12 +29,12 @@ from recbole_custom.utils import FeatureType, FeatureSource
 
 from torch import Tensor
 from torch_scatter import scatter_add
-from torch_geometric.nn import MessagePassing, HypergraphConv
+from torch_geometric.nn import MessagePassing, HypergraphConv, GCNConv
 from torch_geometric.seed import seed_everything
+from torch_geometric.utils import scatter, softmax
 
+import faiss
 import random
-
-
 
 
 class SimpleHypergraphConv(MessagePassing):
@@ -47,7 +47,7 @@ class SimpleHypergraphConv(MessagePassing):
         self.out_channels = out_channels
 
     def forward(self, x: Tensor, hyperedge_index: Tensor,
-                hyperedge_weight: Optional[Tensor] = None) -> Tensor:
+                hyperedge_weight: Optional[Tensor] = None, self_loops = True) -> Tensor:
         num_nodes, num_edges = x.size(0), 0
         if hyperedge_index.numel() > 0:
             num_edges = int(hyperedge_index[1].max()) + 1
@@ -55,22 +55,25 @@ class SimpleHypergraphConv(MessagePassing):
         if hyperedge_weight is None:
             hyperedge_weight = x.new_ones(num_edges)
 
-        D = scatter_add(hyperedge_weight[hyperedge_index[1]],
-                        hyperedge_index[0], dim=0, dim_size=num_nodes)
+        D = scatter(hyperedge_weight[hyperedge_index[1]], hyperedge_index[0],
+                    dim=0, dim_size=num_nodes, reduce='sum')
         D = 1.0 / D
         D[D == float("inf")] = 0
 
-        B = scatter_add(x.new_ones(hyperedge_index.size(1)),
-                        hyperedge_index[1], dim=0, dim_size=num_edges)
+        B = scatter(x.new_ones(hyperedge_index.size(1)), hyperedge_index[1],
+                    dim=0, dim_size=num_edges, reduce='sum')
         B = 1.0 / B
         B[B == float("inf")] = 0
 
-        out = self.propagate(hyperedge_index, x=x, norm=B,
-                             size=(num_nodes, num_edges))
-        out = self.propagate(hyperedge_index.flip([0]), x=out, norm=D,
-                             size=(num_edges, num_nodes))
+        out = self.propagate(hyperedge_index, x=x, norm=B, size=(num_nodes, num_edges))
+        out = self.propagate(hyperedge_index.flip([0]), x=out, norm=D, size=(num_edges, num_nodes))
 
         out = out.view(-1, self.out_channels)
+
+        if self_loops:
+            zero_nodes = torch.nonzero(out.sum(dim=1) == 0).squeeze()
+            if zero_nodes.numel() > 0:
+                out[zero_nodes] = x[zero_nodes]
 
         return out
 
@@ -89,6 +92,8 @@ class HGNN(nn.Module):
         self.convs = nn.ModuleList([SimpleHypergraphConv(hidden_size, hidden_size)
                                     ] * n_layers)
 
+        '''self.convs = nn.ModuleList([HypergraphConv(hidden_size, hidden_size)
+                                    ] * n_layers)'''
     def forward(self, x, edge_index, edge_weight=None):
         h = x
         final = [x]
@@ -99,6 +104,70 @@ class HGNN(nn.Module):
         h = torch.sum(torch.stack(final), dim=0) / (self.n_layers + 1)
 
         return h
+
+
+class GCN(nn.Module):
+    def __init__(self, config, hidden_size, n_layers=1):
+        super(GCN, self).__init__()
+        self.hidden_size = hidden_size
+        self.n_layers = n_layers
+
+        self.convs = nn.ModuleList([GCNConv(hidden_size, hidden_size)
+                                    ] * n_layers)
+    def forward(self, x, edge_index, edge_weight=None):
+        h = x
+        final = [x]
+        for i in range(self.n_layers):
+            h = self.convs[i](h, edge_index, edge_weight=edge_weight)
+            final.append(h)
+
+        h = torch.sum(torch.stack(final), dim=0) / (self.n_layers + 1)
+
+        return h
+
+
+class SimpleShorttermEncoder(nn.Module):
+    def __init__(self, hidden_size, max_seq_length):
+        super(SimpleShorttermEncoder, self).__init__()
+        self.hidden_size = hidden_size
+        self.pos_embedding = nn.Embedding(max_seq_length, self.hidden_size)
+
+        # pos attention
+        self.w_1 = nn.Parameter(torch.Tensor(2 * self.hidden_size, self.hidden_size))
+        self.w_2 = nn.Parameter(torch.Tensor(self.hidden_size, 1))
+        self.glu1 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.glu2 = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1.0 / math.sqrt(self.hidden_size)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
+
+    def forward(self, item_seq, item_seq_emb, item_seq_len):
+        batch_size = item_seq_emb.shape[0]
+        len = item_seq_emb.shape[1]
+        mask = torch.unsqueeze((item_seq != 0), -1)
+
+        hs = torch.sum(item_seq_emb * mask, -2) / torch.sum(mask, 1)
+        hs = hs.unsqueeze(-2).repeat(1, len, 1)
+
+        # rev pos emb
+        pos_emb = self.pos_embedding.weight[:len]
+        pos_emb = torch.flip(pos_emb, [0])  # reverse order
+        pos_emb = pos_emb.unsqueeze(0).repeat(batch_size, 1, 1)
+        nh = torch.matmul(torch.cat([pos_emb, item_seq_emb], -1), self.w_1)
+        nh = torch.tanh(nh)
+
+        nh = torch.sigmoid(self.glu1(nh) + self.glu2(hs))
+
+        # attn
+        beta = torch.matmul(nh, self.w_2)
+        beta = beta * mask
+        seq_emb = torch.sum(beta * item_seq_emb, 1)
+
+        return seq_emb
 
 
 class AttentionMixer(nn.Module):
@@ -156,6 +225,58 @@ class AttentionMixer(nn.Module):
                 item_seq_emb.size(0), -1, self.hidden_size) * mask.view(mask.shape[0], -1, 1).float(), 1)
 
         return output
+
+
+class KMeans(object):
+    """
+    https://github.com/salesforce/ICLRec
+    https://github.com/facebookresearch/faiss/blob/main/benchs/kmeans_mnist.py
+    """
+    def __init__(self, num_cluster, seed, hidden_size, device="cpu"):
+        """
+        Args:
+            k: number of clusters
+        """
+        self.seed = seed
+        self.num_cluster = num_cluster
+        #self.gpu_id = 0
+        self.device = device
+        self.hidden_size = hidden_size
+        self.clus, self.index = self.__init_cluster(self.hidden_size)
+        self.centroids = []
+        self.trainable = True
+
+    def __init_cluster(
+            self, hidden_size, verbose=False, niter=20, nredo=5, max_points_per_centroid=4096, min_points_per_centroid=0
+    ):
+        clus = faiss.Clustering(hidden_size, self.num_cluster)
+        clus.verbose = verbose
+        clus.niter = niter
+        clus.nredo = nredo
+        clus.seed = self.seed
+        clus.max_points_per_centroid = max_points_per_centroid
+        clus.min_points_per_centroid = min_points_per_centroid
+
+        res = faiss.StandardGpuResources()  # use a single GPU
+        index_flat = faiss.IndexFlatL2(self.hidden_size)  # build a flat (CPU) index
+        if str(self.device) != 'cpu':
+            index_flat = faiss.index_cpu_to_gpu(res, 0, index_flat)
+        return clus, index_flat
+
+    def train(self, x):
+        # train to get centroids
+        if x.shape[0] > self.num_cluster:
+            self.clus.train(x=x.cpu().detach().numpy(), index=self.index)
+        centroids = faiss.vector_to_array(self.clus.centroids).reshape(self.num_cluster, self.hidden_size)
+        centroids = torch.Tensor(centroids).to(self.device)
+        #self.centroids = nn.functional.normalize(centroids, p=2, dim=1)
+        self.centroids = centroids
+
+    def query(self, x):
+        D, I = self.index.search(x.cpu().detach().numpy(), 1)  # for each sample, find cluster distance and assignments
+        x2cluster = [int(n[0]) for n in I]
+        x2cluster = torch.LongTensor(x2cluster).to(self.device)
+        return x2cluster, self.centroids[x2cluster]
 
 
 class MLPLayers(nn.Module):

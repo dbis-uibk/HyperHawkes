@@ -1,9 +1,9 @@
 dataset: ta-feng
-USER_ID_FIELD: customer_id
-ITEM_ID_FIELD: product_id
-TIME_FIELD: transaction_date
+USER_ID_FIELD: user_id
+ITEM_ID_FIELD: item_id
+TIME_FIELD: timestamp
 load_col:
-    inter: [customer_id, product_id, transaction_date]
+    inter: [user_id, item_id, timestamp]
 ITEM_LIST_LENGTH_FIELD: item_length
 LIST_SUFFIX: _list
 
