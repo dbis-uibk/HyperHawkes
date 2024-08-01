@@ -4,9 +4,9 @@ HyperHawkes: Hypergraph-based Temporal Modelling of Repeated Intent for Sequenti
 Preprocessed datasets already in `datasets` folder. 
 
 ## Usage
-Rees46 dataset as example, run:
+Ta-feng dataset as example, run:
     ```
-    python run.py --dataset rees46
+    python run.py --dataset ta-feng
     ```
 
 ## Requirements
