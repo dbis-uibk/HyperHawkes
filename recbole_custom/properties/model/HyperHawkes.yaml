@@ -1,5 +1,5 @@
 hgnn_layers: 3
-min_support: 0.000
+min_support: 0.0005
 
 n_clusters: 16
 temp_cluster: 0.03
