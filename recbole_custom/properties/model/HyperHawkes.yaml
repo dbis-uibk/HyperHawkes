@@ -1,25 +1,13 @@
-hidden_size: 64
-n_levels: 2
-n_heads: 4
+hgnn_layers: 3
+min_support: 0.000
+
+n_clusters: 16
+temp_cluster: 0.03
+
 attn_dropout_prob: 0.2
 emb_dropout_prob: 0.2
-layer_norm_eps: 1e-12
-
-hgnn_layers: 2
-
-day_factor: 100
-sub_time_delta: 3600
-n_clusters: 64
-temp_cluster: 0.2
-min_support: 0.0005
-
-#transform: "session_itemseq"
-
-use_hgnn: True
-use_shortterm: True
-use_base_excitation: True
-use_self_item_excitation: True
-use_self_intent_excitation: True
+n_heads: 4
+n_levels: 2
 
 warm_up_epochs: 1
 
