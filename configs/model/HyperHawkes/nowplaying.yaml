@@ -3,7 +3,7 @@ model: HyperHawkes
 hgnn_layers: 2
 min_support: 0.0003
 
-n_clusters: 64
+n_clusters: 32
 temp_cluster: 0.03
 
 attn_dropout_prob: 0.2
