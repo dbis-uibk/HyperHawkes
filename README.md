@@ -17,4 +17,20 @@ Ta-feng dataset as example, run:
 - torch-kmeans >= 0.2.0
 
 ## Citation
-TBA
+```
+@inproceedings{peintner2025hyperhawkes,
+  author       = {Andreas Peintner and
+                  Amir Reza Mohammadi and
+                  Michael M{\"{u}}ller and
+                  Eva Zangerle},
+  title        = {Hypergraph-based Temporal Modelling of Repeated Intent for Sequential
+                  Recommendation},
+  booktitle    = {Proceedings of the {ACM} on Web Conference 2025, {WWW} 2025, Sydney,
+                  NSW, Australia, 28 April 2025- 2 May 2025},
+  pages        = {3809--3818},
+  publisher    = {{ACM}},
+  year         = {2025},
+  url          = {https://doi.org/10.1145/3696410.3714896},
+  doi          = {10.1145/3696410.3714896}
+}
+```
