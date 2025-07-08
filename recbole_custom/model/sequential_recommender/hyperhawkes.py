@@ -3,7 +3,7 @@ HyperHawkes
 ################################################
 
 Reference:
-    TODO
+    Peintner et al. "Hypergraph-based Temporal Modelling of Repeated Intent for Sequential Recommendation." in WWW 2025.
 
 """
 import numpy as np
@@ -247,19 +247,19 @@ class HyperHawkes(SequentialRecommender):
         if self.use_shortterm:
             seq_output = self.forward(item_seq, item_seq_len)
 
-            pos_score += torch.sum(seq_output * pos_items_emb, dim=-1)  # [B]
-            neg_score += torch.sum(seq_output * neg_items_emb, dim=-1)  # [B]
+            pos_score = pos_score + torch.sum(seq_output * pos_items_emb, dim=-1)  # [B]
+            neg_score = neg_score + torch.sum(seq_output * neg_items_emb, dim=-1)  # [B]
 
         if self.use_base_excitation:
-            pos_score += torch.sum(pos_user_rep * pos_items_emb, dim=-1)
-            neg_score += torch.sum(neg_user_rep * neg_items_emb, dim=-1)
+            pos_score = pos_score + torch.sum(pos_user_rep * pos_items_emb, dim=-1)
+            neg_score = neg_score + torch.sum(neg_user_rep * neg_items_emb, dim=-1)
 
         if self.use_self_intent_excitation and self.item2intent is not None:
             p_excitation = self.intent_excitation(pos_items, item_seq, time, time_seq, user_id, pos_user_rep)
             n_excitation = self.intent_excitation(neg_items, item_seq, time, time_seq, user_id, neg_user_rep)
 
-            pos_score += p_excitation.squeeze()
-            neg_score += n_excitation.squeeze()
+            pos_score = pos_score + p_excitation.squeeze()
+            neg_score = neg_score + n_excitation.squeeze()
 
         loss = self.loss_fct(pos_score, neg_score)
 
@@ -283,11 +283,11 @@ class HyperHawkes(SequentialRecommender):
             scores = torch.mul(seq_output, test_item_emb).sum(dim=1)  # [B]
 
         if self.use_base_excitation:
-            scores += torch.sum(user_rep * test_item_emb, dim=-1)
+            scores = scores + torch.sum(user_rep * test_item_emb, dim=-1)
 
         if self.use_self_intent_excitation and self.item2intent is not None:
             intent_excitation = self.intent_excitation(test_item, item_seq, time, time_seq, user_id, user_rep)
-            scores += intent_excitation.squeeze()
+            scores = scores + intent_excitation.squeeze()
 
         return scores
 
@@ -304,7 +304,7 @@ class HyperHawkes(SequentialRecommender):
         if self.use_shortterm:
             seq_output = self.forward(item_seq, item_seq_len)
             test_items_emb = self.item_embedding.weight[:-1]
-            scores += torch.matmul(seq_output, test_items_emb.transpose(0, 1))  # [B n_items]
+            scores = scores + torch.matmul(seq_output, test_items_emb.transpose(0, 1))  # [B n_items]
 
         temporal_scores = []
         if (self.use_base_excitation or
@@ -315,11 +315,11 @@ class HyperHawkes(SequentialRecommender):
                 user_rep = self.get_user_rep(user_id, item_seq, iid_batch)
                 excitation = torch.zeros_like(iid_batch).float()
                 if self.use_base_excitation:
-                    excitation += torch.sum(user_rep * test_item_emb, dim=-1)
+                    excitation = excitation + torch.sum(user_rep * test_item_emb, dim=-1)
 
                 if self.use_self_intent_excitation and self.item2intent is not None:
                     intent_excitation = self.intent_excitation(iid_batch, item_seq, time, time_seq, user_id, user_rep)
-                    excitation += intent_excitation.squeeze()
+                    excitation = excitation + intent_excitation.squeeze()
                 temporal_scores.append(excitation.squeeze())
             temporal_scores = torch.stack(temporal_scores, dim=1)
 

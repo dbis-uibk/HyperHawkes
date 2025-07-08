@@ -15,6 +15,8 @@ Ta-feng dataset as example, run:
 - torch-geometric >= 2.4.0
 - recbole >= 1.2.0
 - torch-kmeans >= 0.2.0
+- mlxtend 
+- faiss
 
 ## Citation
 ```

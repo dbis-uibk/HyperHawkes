@@ -1,3 +1,7 @@
+log_tensorboard/
+log/
+saved/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

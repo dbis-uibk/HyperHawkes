@@ -28,7 +28,6 @@ from torch.nn.init import normal_
 from recbole_custom.utils import FeatureType, FeatureSource
 
 from torch import Tensor
-from torch_scatter import scatter_add
 from torch_geometric.nn import MessagePassing, HypergraphConv, GCNConv
 from torch_geometric.seed import seed_everything
 from torch_geometric.utils import scatter, softmax

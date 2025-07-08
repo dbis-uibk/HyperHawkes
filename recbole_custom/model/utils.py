@@ -2,7 +2,6 @@ import math
 import random
 import numpy as np
 import pandas as pd
-from pyrsistent import v
 import torch
 
 from collections import defaultdict, Counter
@@ -30,7 +29,7 @@ class DataAugmention:
             for session in subseqs:
                 subseq_index = (mask == session).nonzero(as_tuple=True)[0]
                 subseq = seq[subseq_index]
-                if len(subseq) > 1: # TODO needed?
+                if len(subseq) > 1:
                     all_subseqs.append(subseq)
 
         all_subseqs = torch.nn.utils.rnn.pad_sequence(all_subseqs, batch_first=True, padding_value=0.0)
