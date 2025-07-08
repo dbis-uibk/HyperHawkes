@@ -14,11 +14,11 @@ layer_norm_eps: 1e-12
 day_factor: 100
 sub_time_delta: 3600
 
-use_hgnn: False
+use_hgnn: True
 use_shortterm: True
 use_base_excitation: True
 use_self_item_excitation: True
-use_self_intent_excitation: False
+use_self_intent_excitation: True
 
 warm_up_epochs: 1
 
