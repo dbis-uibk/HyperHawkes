@@ -11,12 +11,12 @@ Ta-feng dataset as example, run:
 
 ## Requirements
 - Python >= 3.8
-- PyTorch >= 1.13.1
-- torch-geometric >= 2.4.0
-- recbole >= 1.2.0
+- PyTorch >= 2.0.1
+- torch-geometric >= 2.3.1
+- numpy == 1.24.4
+- recbole >= 1.2.1
 - torch-kmeans >= 0.2.0
-- mlxtend 
-- faiss
+- mlxtend >= 0.23.4
 
 ## Citation
 ```
